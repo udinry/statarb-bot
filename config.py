@@ -20,7 +20,7 @@ class TradingConfig:
     kalman_R: float = 5e-2       # measurement noise (log-price units)
 
     # Z-score thresholds
-    entry_z: float = 2.5       # open trade
+    entry_z: float = 2.0       # open trade
     exit_z: float = 0.5        # close trade on reversion (|z| < exit_z)
     stop_z: float = 4.0        # stop loss — spread blowing out
 
