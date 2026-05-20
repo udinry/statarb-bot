@@ -52,12 +52,12 @@ class TradingConfig:
     # Positive = we are net payers. Reject entry if net_rate > this threshold.
     max_net_funding_rate: float = 0.0001  # 0.01 % per 8 h
 
-    # Fee simulation for paper mode.
-    # Live strategy targets maker entry (post-only limit at mid) + taker exit (market close).
-    # Hyperliquid maker rebate: -0.02% per order; taker fee: +0.05% per order.
-    # Entry uses 2 maker orders (one per leg); exit uses 2 taker orders.
-    taker_fee_rate: float = 0.0005   # 0.05% — applied to exit notional (2 orders)
-    maker_rebate_rate: float = 0.0002 # 0.02% — subtracted from entry notional (2 orders)
+    # Fee simulation for paper mode (Hyperliquid base tier, May 2026).
+    # Live strategy: maker entry (post-only limit) + taker exit (market close).
+    # Actual HL rates: taker 0.045%, maker rebate 0.015% per order.
+    # Net round-trip (maker in, taker out, 2 legs each side): 0.03% × combined_notional.
+    taker_fee_rate: float = 0.00045   # 0.045% taker — applied to exit notional
+    maker_rebate_rate: float = 0.00015 # 0.015% rebate — subtracted from entry notional
 
     # Max slippage tolerated on a market order before we treat it as failed
     order_slippage: float = 0.01  # 1%
