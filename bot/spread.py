@@ -50,6 +50,11 @@ class SpreadAnalyzer:
         if sigma < 1e-12:
             return None
 
+        # Floor sigma so that a sustained flat-price period (Kalman drives spread→0,
+        # std→0) doesn't cause the z-score to explode on the first real tick.
+        # 3e-5 ≈ 0.003% log-unit, calibrated to ETH/BTC typical micro-noise floor.
+        sigma = max(sigma, 3e-5)
+
         return float((self._buf[-1] - mu) / sigma)
 
     # ------------------------------------------------------------------

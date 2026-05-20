@@ -168,7 +168,10 @@ async def _tick(
         return
 
     # ---- 5. Look for new entry ----
-    if abs(z) < cfg.entry_z:
+    # Guard: only enter inside the valid zone [entry_z, stop_z).
+    # Entering at |z| >= stop_z means we'd immediately stop-loss on any
+    # continuation of the move — we entered above our own stop threshold.
+    if not (cfg.entry_z <= abs(z) < cfg.stop_z):
         return
 
     long_a = z < 0.0
