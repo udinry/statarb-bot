@@ -64,7 +64,7 @@ class TradingConfig:
     # 1.1 = require gross > 110% of round-trip fees before taking profit.
     # Prevents quick exits on tiny spread moves that don't cover trading costs.
     # Useful for high-sigma pairs (HYPE/ETH); leave at 0 for ETH/BTC.
-    min_profit_factor: float = 0.0
+    min_profit_factor: float = 1.1   # exit only when gross > 1.1x fees; guards against σ-expansion false exits
 
     # Number of recent hl estimates used to compute the hl trend slope.
     # is_spread_trending() fires when slope > 0.03 bars/tick over this window.
