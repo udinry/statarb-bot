@@ -41,9 +41,13 @@ class KalmanHedgeRatio:
         A positive spread means price_a is rich relative to price_b.
         """
         if not self._initialized:
-            # Seed with a naive ratio so the filter converges faster
             self._beta = price_a / price_b if price_b != 0 else 1.0
-            self._P = 1.0
+            # Initialize P to the steady-state value rather than 1.0.
+            # P=1.0 causes K*price_b ≈ 1 on the first real tick, absorbing
+            # ~100% of the spread and resetting beta to the instantaneous ratio.
+            # P_ss = Q*R / (Q*price_b^2 + R) keeps initial absorption at
+            # the same level as all subsequent ticks (~31% for log prices).
+            self._P = self.Q * self.R / (self.Q * price_b ** 2 + self.R)
             self._initialized = True
             return self._beta, price_a - self._beta * price_b
 
