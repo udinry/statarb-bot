@@ -182,14 +182,23 @@ class ExecutionEngine:
             else:
                 pnl = -(price_a - pos.entry_price_a) * pos.sz_a \
                     + (price_b - pos.entry_price_b) * pos.sz_b
-            self._paper_pnl += pnl
+
+            # Simulate Hyperliquid taker fees: 0.05% per order × 4 orders per round trip.
+            # Entry notional uses entry prices; exit uses exit prices.
+            fee_rate = self._cfg.taker_fee_rate
+            fees = fee_rate * (
+                pos.entry_price_a * pos.sz_a + pos.entry_price_b * pos.sz_b  # entry
+                + price_a * pos.sz_a + price_b * pos.sz_b                    # exit
+            )
+            net_pnl = pnl - fees
+            self._paper_pnl += net_pnl
             logger.info(
                 "EXIT (paper) | reason=%s entry_a=%.4f exit_a=%.4f "
-                "entry_b=%.4f exit_b=%.4f pnl=$%.4f cumulative_pnl=$%.4f",
+                "entry_b=%.4f exit_b=%.4f gross=$%.4f fees=$%.4f net=$%.4f cumulative_net=$%.4f",
                 reason,
                 pos.entry_price_a, price_a,
                 pos.entry_price_b, price_b,
-                pnl, self._paper_pnl,
+                pnl, fees, net_pnl, self._paper_pnl,
             )
             self.position = None
             return True

@@ -52,6 +52,9 @@ class TradingConfig:
     # Positive = we are net payers. Reject entry if net_rate > this threshold.
     max_net_funding_rate: float = 0.0001  # 0.01 % per 8 h
 
+    # Hyperliquid taker fee rate per order (0.05% standard, applied to both legs at entry+exit)
+    taker_fee_rate: float = 0.0005  # 0.05% per order × 4 orders = ~0.2% round-trip
+
     # Max slippage tolerated on a market order before we treat it as failed
     order_slippage: float = 0.01  # 1%
 
