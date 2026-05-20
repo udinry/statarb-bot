@@ -20,7 +20,7 @@ class TradingConfig:
     kalman_R: float = 5e-2       # measurement noise (log-price units)
 
     # Z-score thresholds
-    entry_z: float = 2.0       # open trade
+    entry_z: float = 1.8       # open trade
     exit_z: float = 0.0        # close trade on full reversion (z crosses 0); time_stop backstops if z stalls
     stop_z: float = 3.5        # stop loss — spread blowing out; >3.5 is momentum not reversion
 
@@ -52,8 +52,12 @@ class TradingConfig:
     # Positive = we are net payers. Reject entry if net_rate > this threshold.
     max_net_funding_rate: float = 0.0001  # 0.01 % per 8 h
 
-    # Hyperliquid taker fee rate per order (0.05% standard, applied to both legs at entry+exit)
-    taker_fee_rate: float = 0.0005  # 0.05% per order × 4 orders = ~0.2% round-trip
+    # Fee simulation for paper mode.
+    # Live strategy targets maker entry (post-only limit at mid) + taker exit (market close).
+    # Hyperliquid maker rebate: -0.02% per order; taker fee: +0.05% per order.
+    # Entry uses 2 maker orders (one per leg); exit uses 2 taker orders.
+    taker_fee_rate: float = 0.0005   # 0.05% — applied to exit notional (2 orders)
+    maker_rebate_rate: float = 0.0002 # 0.02% — subtracted from entry notional (2 orders)
 
     # Max slippage tolerated on a market order before we treat it as failed
     order_slippage: float = 0.01  # 1%

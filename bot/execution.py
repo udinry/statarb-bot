@@ -183,12 +183,13 @@ class ExecutionEngine:
                 pnl = -(price_a - pos.entry_price_a) * pos.sz_a \
                     + (price_b - pos.entry_price_b) * pos.sz_b
 
-            # Simulate Hyperliquid taker fees: 0.05% per order × 4 orders per round trip.
-            # Entry notional uses entry prices; exit uses exit prices.
-            fee_rate = self._cfg.taker_fee_rate
-            fees = fee_rate * (
-                pos.entry_price_a * pos.sz_a + pos.entry_price_b * pos.sz_b  # entry
-                + price_a * pos.sz_a + price_b * pos.sz_b                    # exit
+            # Fee simulation: maker entry (post-only limit) + taker exit (market close).
+            # Entry rebate reduces cost; exit is always taker (market order).
+            entry_notional = pos.entry_price_a * pos.sz_a + pos.entry_price_b * pos.sz_b
+            exit_notional = price_a * pos.sz_a + price_b * pos.sz_b
+            fees = (
+                -self._cfg.maker_rebate_rate * entry_notional   # rebate received at entry
+                + self._cfg.taker_fee_rate * exit_notional      # fee paid at exit
             )
             net_pnl = pnl - fees
             self._paper_pnl += net_pnl
