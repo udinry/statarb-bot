@@ -16,7 +16,7 @@ class TradingConfig:
     # With raw BTC prices (~77 000), K*price_b → 1 and the filter absorbs 100%
     # of the spread each tick (effectively zeroing it). Using log prices keeps
     # price_b ≈ 11, so Q*price_b^2 << R and the spread persists correctly.
-    kalman_delta: float = 1e-4   # hedge-ratio drift speed
+    kalman_delta: float = 2e-5   # hedge-ratio drift speed; slower → spread persists longer (real price reversion, not Kalman pull-back)
     kalman_R: float = 5e-2       # measurement noise (log-price units)
 
     # Z-score thresholds
