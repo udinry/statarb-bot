@@ -28,7 +28,9 @@ class TradingConfig:
     spread_window: int = 100
 
     # Bars of history for Ornstein-Uhlenbeck half-life estimation
-    halflife_lookback: int = 200
+    # 100 bars = 33 full reversion cycles at hl≈3b — statistically as robust as 200
+    # and aligns warmup with spread_window so both are ready at bar 100 (8.3 min)
+    halflife_lookback: int = 100
 
     # Require OU half-life to be established before entering any trade.
     # Entries in bars 100-199 (z ready but hl not) risk entering momentum moves.
