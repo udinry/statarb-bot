@@ -30,6 +30,12 @@ class TradingConfig:
     # Bars of history for Ornstein-Uhlenbeck half-life estimation
     halflife_lookback: int = 200
 
+    # Require OU half-life to be established before entering any trade.
+    # Entries in bars 100-199 (z ready but hl not) risk entering momentum moves.
+    require_half_life: bool = True
+    # Skip entry if hl > this many bars — spread is trending, not mean-reverting.
+    max_half_life_bars: float = 15.0
+
     # Close if trade age exceeds this multiple of the OU half-life.
     # ETH/BTC hl ≈ 1.8 bars. At 2x that's only 18s — too aggressive.
     # 5x = 45s gives the spread enough time to revert before bailing.

@@ -174,6 +174,19 @@ async def _tick(
     if not (cfg.entry_z <= abs(z) < cfg.stop_z):
         return
 
+    # Guard: require established half-life (bars 100-199 have z but not hl).
+    # Also skip if hl is too large — spread is trending, not mean-reverting.
+    if cfg.require_half_life:
+        if half_life is None:
+            logger.info("Entry skipped | half_life not yet established (warming up)")
+            return
+        if half_life > cfg.max_half_life_bars:
+            logger.info(
+                "Entry skipped | half_life=%.1fb > max=%.1fb (trending spread)",
+                half_life, cfg.max_half_life_bars,
+            )
+            return
+
     long_a = z < 0.0
     funding_ok, net_rate = await funding.evaluate(cfg.asset_a, cfg.asset_b, long_a)
 
