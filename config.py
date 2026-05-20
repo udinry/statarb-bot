@@ -21,7 +21,7 @@ class TradingConfig:
 
     # Z-score thresholds
     entry_z: float = 2.0       # open trade
-    exit_z: float = 0.5        # close trade on reversion (|z| < exit_z)
+    exit_z: float = 0.0        # close trade on full reversion (z crosses 0); time_stop backstops if z stalls
     stop_z: float = 3.5        # stop loss — spread blowing out; >3.5 is momentum not reversion
 
     # Rolling window for z-score normalization (in bars)
