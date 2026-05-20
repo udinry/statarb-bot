@@ -22,7 +22,7 @@ class TradingConfig:
     # Z-score thresholds
     entry_z: float = 2.0       # open trade
     exit_z: float = 0.5        # close trade on reversion (|z| < exit_z)
-    stop_z: float = 4.0        # stop loss — spread blowing out
+    stop_z: float = 3.5        # stop loss — spread blowing out; >3.5 is momentum not reversion
 
     # Rolling window for z-score normalization (in bars)
     spread_window: int = 100
