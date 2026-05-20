@@ -36,7 +36,7 @@ class TradingConfig:
     # Entries in bars 100-199 (z ready but hl not) risk entering momentum moves.
     require_half_life: bool = True
     # Skip entry if hl > this many bars — spread is trending, not mean-reverting.
-    max_half_life_bars: float = 5.0
+    max_half_life_bars: float = 8.0   # HYPE/SOL hl~7.3b; ETH/BTC had 1.2-2b so 5.0 was fine there
 
     # Close if trade age exceeds this multiple of the OU half-life.
     # ETH/BTC hl ≈ 1.8 bars. At 2x that's only 18s — too aggressive.
