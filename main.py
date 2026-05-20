@@ -11,6 +11,7 @@ Entry point. Runs the async main loop which:
 
 import asyncio
 import logging
+import math
 import os
 import sys
 
@@ -122,8 +123,10 @@ async def _tick(
         )
         return
 
-    # ---- 2. Kalman filter → spread ----
-    beta, spread = kalman.update(price_a, price_b)
+    # ---- 2. Kalman filter → spread (log-price space) ----
+    # Using log prices prevents the Kalman gain from absorbing 100% of the
+    # spread every tick (which happens with raw prices where price_b ≈ 77 000).
+    beta, spread = kalman.update(math.log(price_a), math.log(price_b))
     analyzer.push(spread)
 
     # ---- 3. Signal computation ----

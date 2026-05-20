@@ -11,11 +11,13 @@ class TradingConfig:
     asset_a: str = field(default_factory=lambda: os.getenv("ASSET_A", "ETH"))
     asset_b: str = field(default_factory=lambda: os.getenv("ASSET_B", "BTC"))
 
-    # Kalman filter parameters
-    # delta controls how fast the hedge ratio can drift (higher = more reactive)
-    # R is measurement noise (higher = smoother hedge ratio)
-    kalman_delta: float = 1e-4
-    kalman_R: float = 1e-2
+    # Kalman filter parameters — tuned for log-price space.
+    # Q = delta/(1-delta) is the process noise; R is measurement noise.
+    # With raw BTC prices (~77 000), K*price_b → 1 and the filter absorbs 100%
+    # of the spread each tick (effectively zeroing it). Using log prices keeps
+    # price_b ≈ 11, so Q*price_b^2 << R and the spread persists correctly.
+    kalman_delta: float = 1e-4   # hedge-ratio drift speed
+    kalman_R: float = 5e-2       # measurement noise (log-price units)
 
     # Z-score thresholds
     entry_z: float = 2.5       # open trade
