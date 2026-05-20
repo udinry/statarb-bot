@@ -47,7 +47,8 @@ class ExecutionEngine:
         self._client = client
         self._cfg = config
         self.position: Optional[Position] = None
-        self._paper_pnl: float = 0.0      # cumulative simulated P&L in paper mode
+        self._paper_gross_pnl: float = 0.0  # cumulative gross (before fees) — validates strategy
+        self._paper_pnl: float = 0.0        # cumulative net (after fees) — reflects live reality
 
     # ------------------------------------------------------------------
     # Sizing
@@ -192,14 +193,16 @@ class ExecutionEngine:
                 + self._cfg.taker_fee_rate * exit_notional      # fee paid at exit
             )
             net_pnl = pnl - fees
+            self._paper_gross_pnl += pnl
             self._paper_pnl += net_pnl
             logger.info(
                 "EXIT (paper) | reason=%s entry_a=%.4f exit_a=%.4f "
-                "entry_b=%.4f exit_b=%.4f gross=$%.4f fees=$%.4f net=$%.4f cumulative_net=$%.4f",
+                "entry_b=%.4f exit_b=%.4f gross=$%.4f fees=$%.4f net=$%.4f "
+                "cumulative_gross=$%.4f cumulative_net=$%.4f",
                 reason,
                 pos.entry_price_a, price_a,
                 pos.entry_price_b, price_b,
-                pnl, fees, net_pnl, self._paper_pnl,
+                pnl, fees, net_pnl, self._paper_gross_pnl, self._paper_pnl,
             )
             self.position = None
             return True
