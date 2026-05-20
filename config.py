@@ -30,8 +30,10 @@ class TradingConfig:
     # Bars of history for Ornstein-Uhlenbeck half-life estimation
     halflife_lookback: int = 200
 
-    # Close if trade age exceeds this multiple of the OU half-life
-    time_stop_multiplier: float = 2.0
+    # Close if trade age exceeds this multiple of the OU half-life.
+    # ETH/BTC hl ≈ 1.8 bars. At 2x that's only 18s — too aggressive.
+    # 5x = 45s gives the spread enough time to revert before bailing.
+    time_stop_multiplier: float = 5.0
 
     # Notional USD per leg (leg B is beta-adjusted to match leg A notional)
     notional_usd: float = field(

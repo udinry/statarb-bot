@@ -152,19 +152,19 @@ async def _tick(
     # ---- 4. Manage open position ----
     if engine.position is not None:
         if engine.should_stop_loss(z):
-            await engine.exit(reason=f"stop_loss z={z:.3f}", current_spread=spread)
+            await engine.exit(reason=f"stop_loss z={z:.3f}", price_a=price_a, price_b=price_b)
             return
 
         if engine.should_time_stop(half_life):
             age = engine.position.age_bars(cfg.poll_interval_seconds)
             await engine.exit(
-                reason=f"time_stop age={age:.0f}b hl={half_life}",
-                current_spread=spread,
+                reason=f"time_stop age={age:.0f}b hl={half_life:.1f}",
+                price_a=price_a, price_b=price_b,
             )
             return
 
         if engine.should_exit_reversion(z):
-            await engine.exit(reason=f"reversion z={z:.3f}", current_spread=spread)
+            await engine.exit(reason=f"reversion z={z:.3f}", price_a=price_a, price_b=price_b)
         return
 
     # ---- 5. Look for new entry ----

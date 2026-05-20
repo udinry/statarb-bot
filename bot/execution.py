@@ -25,6 +25,8 @@ class Position:
     entry_spread: float
     entry_z: float
     half_life_bars: Optional[float]
+    entry_price_a: float = 0.0
+    entry_price_b: float = 0.0
     opened_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
 
     def age_bars(self, poll_interval_seconds: float) -> float:
@@ -104,6 +106,7 @@ class ExecutionEngine:
             self.position = Position(
                 side=side, sz_a=sz_a, sz_b=sz_b, beta=beta,
                 entry_spread=spread, entry_z=z, half_life_bars=half_life,
+                entry_price_a=price_a, entry_price_b=price_b,
             )
             return True
 
@@ -129,6 +132,7 @@ class ExecutionEngine:
             self.position = Position(
                 side=side, sz_a=sz_a, sz_b=sz_b, beta=beta,
                 entry_spread=spread, entry_z=z, half_life_bars=half_life,
+                entry_price_a=price_a, entry_price_b=price_b,
             )
             logger.info("ENTRY OK | both legs filled")
             return True
@@ -157,28 +161,35 @@ class ExecutionEngine:
     # Exit
     # ------------------------------------------------------------------
 
-    async def exit(self, reason: str, current_spread: Optional[float] = None) -> bool:
+    async def exit(
+        self,
+        reason: str,
+        price_a: Optional[float] = None,
+        price_b: Optional[float] = None,
+    ) -> bool:
         if self.position is None:
             return False
 
         pos = self.position
 
-        if self._cfg.paper_mode and current_spread is not None:
+        if self._cfg.paper_mode and price_a is not None and price_b is not None:
+            # Real dollar P&L using actual prices:
+            #   Long A leg:  (exit - entry) * sz_a
+            #   Short B leg: -(exit - entry) * sz_b
             if pos.side == Side.LONG_A_SHORT_B:
-                # Profit when spread rises: exit_spread - entry_spread
-                pnl = (current_spread - pos.entry_spread) * (
-                    self._cfg.notional_usd / pos.entry_spread
-                    if pos.entry_spread != 0 else 0
-                )
+                pnl = (price_a - pos.entry_price_a) * pos.sz_a \
+                    - (price_b - pos.entry_price_b) * pos.sz_b
             else:
-                pnl = (pos.entry_spread - current_spread) * (
-                    self._cfg.notional_usd / pos.entry_spread
-                    if pos.entry_spread != 0 else 0
-                )
+                pnl = -(price_a - pos.entry_price_a) * pos.sz_a \
+                    + (price_b - pos.entry_price_b) * pos.sz_b
             self._paper_pnl += pnl
             logger.info(
-                "EXIT (paper) | reason=%s pnl=%.4f cumulative_pnl=%.4f",
-                reason, pnl, self._paper_pnl,
+                "EXIT (paper) | reason=%s entry_a=%.4f exit_a=%.4f "
+                "entry_b=%.4f exit_b=%.4f pnl=$%.4f cumulative_pnl=$%.4f",
+                reason,
+                pos.entry_price_a, price_a,
+                pos.entry_price_b, price_b,
+                pnl, self._paper_pnl,
             )
             self.position = None
             return True
