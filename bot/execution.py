@@ -43,9 +43,12 @@ class ExecutionEngine:
       4. Paper mode for dry runs (all logic active, no real orders sent)
     """
 
-    def __init__(self, client: HyperliquidClient, config: TradingConfig):
+    def __init__(self, client: HyperliquidClient, config: TradingConfig,
+                 sz_decimals_a: int = 4, sz_decimals_b: int = 4):
         self._client = client
         self._cfg = config
+        self._sz_decimals_a = sz_decimals_a
+        self._sz_decimals_b = sz_decimals_b
         self.position: Optional[Position] = None
         self._paper_gross_pnl: float = 0.0  # cumulative gross (before fees) — validates strategy
         self._paper_pnl: float = 0.0        # cumulative net (after fees) — reflects live reality
@@ -65,9 +68,11 @@ class ExecutionEngine:
         This makes the dollar value of leg B equal to beta * notional_a,
         which exactly hedges the Kalman-estimated exposure.
         """
-        sz_a = round(self._cfg.notional_usd / price_a, 4)
-        sz_b = round((beta * sz_a * price_a) / price_b, 4)
-        return max(sz_a, 0.0001), max(sz_b, 0.0001)
+        sz_a = round(self._cfg.notional_usd / price_a, self._sz_decimals_a)
+        sz_b = round((beta * sz_a * price_a) / price_b, self._sz_decimals_b)
+        min_a = 10 ** -self._sz_decimals_a
+        min_b = 10 ** -self._sz_decimals_b
+        return max(sz_a, min_a), max(sz_b, min_b)
 
     # ------------------------------------------------------------------
     # Entry

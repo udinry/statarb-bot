@@ -76,6 +76,17 @@ def _build_sdk(cfg: TradingConfig) -> tuple[HyperliquidClient, Info]:
 async def run(cfg: TradingConfig) -> None:
     client, info = _build_sdk(cfg)
 
+    # Fetch per-asset size precision (szDecimals) so orders are correctly rounded for live mode.
+    # HYPE=2, ETH=4, BTC=5, SOL=2. Default to 4 if asset not found.
+    loop = asyncio.get_event_loop()
+    try:
+        universe_data, _ = await loop.run_in_executor(None, info.meta_and_asset_ctxs)
+        sz_dec = {a["name"]: int(a.get("szDecimals", 4)) for a in universe_data["universe"]}
+    except Exception:
+        sz_dec = {}
+    sz_a = sz_dec.get(cfg.asset_a, 4)
+    sz_b = sz_dec.get(cfg.asset_b, 4)
+
     kalman = KalmanHedgeRatio(delta=cfg.kalman_delta, R=cfg.kalman_R)
     analyzer = SpreadAnalyzer(
         window=cfg.spread_window,
@@ -83,7 +94,10 @@ async def run(cfg: TradingConfig) -> None:
         hl_trend_lookback=cfg.hl_trend_lookback,
     )
     funding = FundingRateChecker(info, max_net_cost=cfg.max_net_funding_rate)
-    engine = ExecutionEngine(client, cfg)
+    engine = ExecutionEngine(client, cfg, sz_decimals_a=sz_a, sz_decimals_b=sz_b)
+
+    logger.info("Size precision | %s=%d decimals %s=%d decimals",
+                cfg.asset_a, sz_a, cfg.asset_b, sz_b)
 
     logger.info(
         "StatArb bot starting | pair=%s/%s entry_z=%.2f exit_z=%.2f stop_z=%.2f "
