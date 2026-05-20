@@ -77,7 +77,11 @@ async def run(cfg: TradingConfig) -> None:
     client, info = _build_sdk(cfg)
 
     kalman = KalmanHedgeRatio(delta=cfg.kalman_delta, R=cfg.kalman_R)
-    analyzer = SpreadAnalyzer(window=cfg.spread_window, halflife_lookback=cfg.halflife_lookback)
+    analyzer = SpreadAnalyzer(
+        window=cfg.spread_window,
+        halflife_lookback=cfg.halflife_lookback,
+        hl_trend_lookback=cfg.hl_trend_lookback,
+    )
     funding = FundingRateChecker(info, max_net_cost=cfg.max_net_funding_rate)
     engine = ExecutionEngine(client, cfg)
 
@@ -163,8 +167,13 @@ async def _tick(
             )
             return
 
-        if engine.should_exit_reversion(z):
-            await engine.exit(reason=f"reversion z={z:.3f}", price_a=price_a, price_b=price_b)
+        if engine.should_exit_reversion(z, price_a=price_a, price_b=price_b):
+            gross = engine.compute_gross_pnl(price_a, price_b)
+            fee_est = engine.estimate_round_trip_fees()
+            await engine.exit(
+                reason=f"reversion z={z:.3f} gross=${gross:.4f} fee_est=${fee_est:.4f}",
+                price_a=price_a, price_b=price_b,
+            )
         return
 
     # ---- 5. Look for new entry ----
@@ -186,6 +195,14 @@ async def _tick(
                 half_life, cfg.max_half_life_bars,
             )
             return
+
+    # Guard: skip entry when hl is INCREASING (spread losing mean-reversion property).
+    # Catches trending regimes even when current hl is below max_half_life_bars.
+    if analyzer.is_spread_trending():
+        logger.info(
+            "Entry skipped | hl trend detected (spread trending, not oscillating)",
+        )
+        return
 
     long_a = z < 0.0
     funding_ok, net_rate = await funding.evaluate(cfg.asset_a, cfg.asset_b, long_a)

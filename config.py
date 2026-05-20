@@ -59,6 +59,17 @@ class TradingConfig:
     taker_fee_rate: float = 0.00045   # 0.045% taker — applied to exit notional
     maker_rebate_rate: float = 0.00015 # 0.015% rebate — subtracted from entry notional
 
+    # Only allow reversion exit when gross PnL > fees × this factor.
+    # 0.0 = disabled (exit whenever z crosses exit_z).
+    # 1.1 = require gross > 110% of round-trip fees before taking profit.
+    # Prevents quick exits on tiny spread moves that don't cover trading costs.
+    # Useful for high-sigma pairs (HYPE/ETH); leave at 0 for ETH/BTC.
+    min_profit_factor: float = 0.0
+
+    # Number of recent hl estimates used to compute the hl trend slope.
+    # is_spread_trending() fires when slope > 0.03 bars/tick over this window.
+    hl_trend_lookback: int = 20
+
     # Max slippage tolerated on a market order before we treat it as failed
     order_slippage: float = 0.01  # 1%
 

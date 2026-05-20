@@ -8,16 +8,20 @@ class SpreadAnalyzer:
     Tracks spread history and provides:
       - Rolling z-score for entry/exit signals
       - Ornstein-Uhlenbeck half-life for time-stop calibration
+      - Regime detection: is the half-life trending upward (spread losing mean-reversion)?
 
     Both quantities are computed over the most recent N observations.
     The deque is bounded to max(spread_window, halflife_lookback) so we
     hold only what we actually need.
     """
 
-    def __init__(self, window: int = 100, halflife_lookback: int = 200):
+    def __init__(self, window: int = 100, halflife_lookback: int = 200, hl_trend_lookback: int = 20):
         self.window = window
         self.halflife_lookback = halflife_lookback
+        self.hl_trend_lookback = hl_trend_lookback
         self._buf: deque[float] = deque(maxlen=max(window, halflife_lookback))
+        # Stores the last N computed half-life values (one per tick where hl is valid)
+        self._hl_history: deque[float] = deque(maxlen=hl_trend_lookback)
 
     # ------------------------------------------------------------------
     # Data ingestion
@@ -91,8 +95,32 @@ class SpreadAnalyzer:
             # Spread is trending, not mean-reverting — skip trade
             return None
 
-        hl = -np.log(2.0) / beta
-        return float(hl)
+        hl = float(-np.log(2.0) / beta)
+        self._hl_history.append(hl)
+        return hl
+
+    # ------------------------------------------------------------------
+    # Regime detection
+    # ------------------------------------------------------------------
+
+    def is_spread_trending(self) -> bool:
+        """
+        True if the half-life has been INCREASING over recent estimates.
+
+        An increasing hl means each mean-reversion cycle is taking longer —
+        the spread is trending rather than oscillating. Entering a trending
+        spread is the primary cause of statarb losses (SOL/BTC May 2026).
+
+        Requires at least hl_trend_lookback valid hl estimates.
+        """
+        n = len(self._hl_history)
+        if n < self.hl_trend_lookback:
+            return False
+        arr = np.array(self._hl_history, dtype=float)
+        x = np.arange(n, dtype=float)
+        slope = float(np.polyfit(x, arr, 1)[0])
+        # Trending if hl is growing by more than 0.03 bars per tick on average
+        return slope > 0.03
 
     # ------------------------------------------------------------------
     # Helpers

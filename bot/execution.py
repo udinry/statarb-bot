@@ -231,16 +231,52 @@ class ExecutionEngine:
     # Exit conditions
     # ------------------------------------------------------------------
 
-    def should_exit_reversion(self, z: float) -> bool:
-        """True when the spread has reverted enough to take profit."""
+    def compute_gross_pnl(self, price_a: float, price_b: float) -> float:
+        """Real-time unrealized gross PnL for the open position."""
+        if self.position is None:
+            return 0.0
+        pos = self.position
+        if pos.side == Side.LONG_A_SHORT_B:
+            return (price_a - pos.entry_price_a) * pos.sz_a \
+                 - (price_b - pos.entry_price_b) * pos.sz_b
+        else:
+            return -(price_a - pos.entry_price_a) * pos.sz_a \
+                  + (price_b - pos.entry_price_b) * pos.sz_b
+
+    def estimate_round_trip_fees(self) -> float:
+        """Estimated maker-in taker-out round-trip fees based on entry notional."""
+        if self.position is None:
+            return 0.0
+        pos = self.position
+        entry_notional = pos.entry_price_a * pos.sz_a + pos.entry_price_b * pos.sz_b
+        return (-self._cfg.maker_rebate_rate + self._cfg.taker_fee_rate) * entry_notional
+
+    def should_exit_reversion(self, z: float, price_a: float = 0.0, price_b: float = 0.0) -> bool:
+        """
+        True when the spread has reverted enough to take profit.
+
+        If min_profit_factor > 0 and prices are provided, also requires that
+        gross PnL > fees × min_profit_factor before allowing a reversion exit.
+        This prevents exiting on tiny moves that don't cover fees.
+        """
         if self.position is None:
             return False
+        # Z-score threshold
         if self.position.side == Side.LONG_A_SHORT_B:
-            # Entered at z << 0; exit when z climbs back above -exit_z
-            return z >= -self._cfg.exit_z
+            z_ok = z >= -self._cfg.exit_z
         else:
-            # Entered at z >> 0; exit when z falls back below +exit_z
-            return z <= self._cfg.exit_z
+            z_ok = z <= self._cfg.exit_z
+        if not z_ok:
+            return False
+
+        # Minimum profit guard
+        if self._cfg.min_profit_factor > 0.0 and price_a > 0.0 and price_b > 0.0:
+            gross = self.compute_gross_pnl(price_a, price_b)
+            fee_est = self.estimate_round_trip_fees()
+            if gross < fee_est * self._cfg.min_profit_factor:
+                return False
+
+        return True
 
     def should_stop_loss(self, z: float) -> bool:
         """True when z has blown out far enough to signal cointegration break."""
