@@ -101,6 +101,9 @@ async def run(cfg: TradingConfig) -> None:
     # opposite direction to the trade. Catches trending regimes not detected by hl slope.
     # 60 bars × 5s = 5 minutes. Threshold 1.5% matches ~2× normal 5-min HYPE volatility.
     _price_a_history: collections.deque = collections.deque(maxlen=cfg.momentum_lookback_bars)
+    # Beta drift tracker: the Kalman hedge ratio drifts when asset_a trends vs asset_b.
+    # Fires earlier than hl-slope (which needs spread width to increase first).
+    _beta_history: collections.deque = collections.deque(maxlen=cfg.beta_drift_window)
 
     logger.info("Size precision | %s=%d decimals %s=%d decimals",
                 cfg.asset_a, sz_a, cfg.asset_b, sz_b)
@@ -115,7 +118,7 @@ async def run(cfg: TradingConfig) -> None:
 
     while True:
         try:
-            await _tick(cfg, client, kalman, analyzer, funding, engine, _price_a_history)
+            await _tick(cfg, client, kalman, analyzer, funding, engine, _price_a_history, _beta_history)
         except Exception:
             logger.exception("Unhandled exception in tick — continuing")
 
@@ -130,6 +133,7 @@ async def _tick(
     funding: FundingRateChecker,
     engine: ExecutionEngine,
     price_a_history: collections.deque,
+    beta_history: collections.deque,
 ) -> None:
     # ---- 1. Fetch prices ----
     try:
@@ -165,6 +169,7 @@ async def _tick(
     # spread every tick (which happens with raw prices where price_b ≈ 77 000).
     price_a_history.append(price_a)
     beta, spread = kalman.update(math.log(price_a), math.log(price_b))
+    beta_history.append(beta)
     analyzer.push(spread)
 
     # ---- 3. Signal computation ----
@@ -256,6 +261,23 @@ async def _tick(
                 "Entry skipped | momentum %s%+.2f%% over %db (threshold %.1f%%)",
                 cfg.asset_a, momentum_pct * 100, cfg.momentum_lookback_bars,
                 cfg.momentum_threshold * 100,
+            )
+            return
+
+    # Guard: beta drift filter. If the Kalman hedge ratio has drifted consistently in
+    # one direction over the last beta_drift_window bars, asset_a is trending vs asset_b.
+    # This fires earlier than the hl-slope filter (which requires spread width to grow).
+    # During a pump: beta drifts up → block LONG_B (don't short the pumping asset).
+    # During a crash: beta drifts down → block LONG_A (don't long the falling asset).
+    if len(beta_history) >= cfg.beta_drift_window:
+        beta_drift = beta_history[-1] - beta_history[0]
+        drift_blocked = (not long_a and beta_drift > cfg.beta_drift_threshold) or \
+                        (long_a and beta_drift < -cfg.beta_drift_threshold)
+        if drift_blocked:
+            logger.info(
+                "Entry skipped | beta drift %+.5f (threshold ±%.4f) — %s trending",
+                beta_drift, cfg.beta_drift_threshold,
+                cfg.asset_a if (not long_a and beta_drift > 0) else f"{cfg.asset_a} down",
             )
             return
 

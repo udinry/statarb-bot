@@ -70,6 +70,14 @@ class TradingConfig:
     # is_spread_trending() fires when slope > 0.03 bars/tick over this window.
     hl_trend_lookback: int = 20
 
+    # Beta drift filter: the Kalman hedge ratio drifts upward when asset_a is
+    # systematically rising vs asset_b (pump regime). Block entries in the trending
+    # direction when beta_now - beta_{N bars ago} exceeds this threshold.
+    # 300 bars = 25 min window. Threshold 3e-4: ~11σ above pure noise drift,
+    # triggered at ~0.5% drift in 25 min (caught today's HYPE pump early).
+    beta_drift_window: int = 300
+    beta_drift_threshold: float = 0.0003
+
     # Price momentum filter: block entries when price_a has moved more than this
     # fraction in the opposite direction to the proposed trade, measured over the
     # last momentum_lookback_bars bars. Prevents fading strong momentum (e.g., HYPE
