@@ -74,9 +74,11 @@ class TradingConfig:
     # fraction in the opposite direction to the proposed trade, measured over the
     # last momentum_lookback_bars bars. Prevents fading strong momentum (e.g., HYPE
     # pumping +10% over 7h triggered repeated SHORT HYPE stop-losses).
-    # 60 bars × 5s = 5-minute window. 1.5% is ~2× typical 5-min HYPE volatility.
+    # 60 bars × 5s = 5-minute window. 1.0% ≈ 2× typical 5-min HYPE vol (~0.5-0.6%).
+    # Prior pump stop-losses had 0.3-1.3% 5-min momentum — 1.5% missed them, 1.0% catches
+    # the acceleration windows that triggered entries while HYPE was trending up.
     momentum_lookback_bars: int = 60
-    momentum_threshold: float = 0.015  # 1.5%
+    momentum_threshold: float = 0.010  # 1.0%
 
     # Max slippage tolerated on a market order before we treat it as failed
     order_slippage: float = 0.01  # 1%
