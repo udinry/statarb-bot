@@ -10,6 +10,7 @@ Entry point. Runs the async main loop which:
 """
 
 import asyncio
+import collections
 import logging
 import math
 import os
@@ -96,6 +97,11 @@ async def run(cfg: TradingConfig) -> None:
     funding = FundingRateChecker(info, max_net_cost=cfg.max_net_funding_rate)
     engine = ExecutionEngine(client, cfg, sz_decimals_a=sz_a, sz_decimals_b=sz_b)
 
+    # Price momentum tracker: blocks entries when price_a has moved strongly in the
+    # opposite direction to the trade. Catches trending regimes not detected by hl slope.
+    # 60 bars × 5s = 5 minutes. Threshold 1.5% matches ~2× normal 5-min HYPE volatility.
+    _price_a_history: collections.deque = collections.deque(maxlen=cfg.momentum_lookback_bars)
+
     logger.info("Size precision | %s=%d decimals %s=%d decimals",
                 cfg.asset_a, sz_a, cfg.asset_b, sz_b)
 
@@ -109,7 +115,7 @@ async def run(cfg: TradingConfig) -> None:
 
     while True:
         try:
-            await _tick(cfg, client, kalman, analyzer, funding, engine)
+            await _tick(cfg, client, kalman, analyzer, funding, engine, _price_a_history)
         except Exception:
             logger.exception("Unhandled exception in tick — continuing")
 
@@ -123,6 +129,7 @@ async def _tick(
     analyzer: SpreadAnalyzer,
     funding: FundingRateChecker,
     engine: ExecutionEngine,
+    price_a_history: collections.deque,
 ) -> None:
     # ---- 1. Fetch prices ----
     try:
@@ -156,6 +163,7 @@ async def _tick(
     # ---- 2. Kalman filter → spread (log-price space) ----
     # Using log prices prevents the Kalman gain from absorbing 100% of the
     # spread every tick (which happens with raw prices where price_b ≈ 77 000).
+    price_a_history.append(price_a)
     beta, spread = kalman.update(math.log(price_a), math.log(price_b))
     analyzer.push(spread)
 
@@ -231,6 +239,26 @@ async def _tick(
         return
 
     long_a = z < 0.0
+
+    # Guard: price momentum filter. Block entries when price_a has moved strongly in the
+    # direction we'd be fading — i.e., price_a rising fast → don't short it (long_b);
+    # price_a falling fast → don't long it (long_a). This catches HYPE-pump scenarios
+    # where the 100-bar rolling mean adapts to the trend and the bot repeatedly fades
+    # a momentum move, triggering stop-losses. Uses cfg.momentum_lookback_bars × poll_interval
+    # window (default: 60 bars × 5s = 5 minutes) and blocks when |Δprice_a| > threshold.
+    if len(price_a_history) >= cfg.momentum_lookback_bars:
+        oldest_a = price_a_history[0]
+        momentum_pct = (price_a - oldest_a) / oldest_a
+        blocked = (not long_a and momentum_pct > cfg.momentum_threshold) or \
+                  (long_a and momentum_pct < -cfg.momentum_threshold)
+        if blocked:
+            logger.info(
+                "Entry skipped | momentum %s%+.2f%% over %db (threshold %.1f%%)",
+                cfg.asset_a, momentum_pct * 100, cfg.momentum_lookback_bars,
+                cfg.momentum_threshold * 100,
+            )
+            return
+
     funding_ok, net_rate = await funding.evaluate(cfg.asset_a, cfg.asset_b, long_a)
 
     if not funding_ok:

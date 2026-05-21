@@ -70,6 +70,14 @@ class TradingConfig:
     # is_spread_trending() fires when slope > 0.03 bars/tick over this window.
     hl_trend_lookback: int = 20
 
+    # Price momentum filter: block entries when price_a has moved more than this
+    # fraction in the opposite direction to the proposed trade, measured over the
+    # last momentum_lookback_bars bars. Prevents fading strong momentum (e.g., HYPE
+    # pumping +10% over 7h triggered repeated SHORT HYPE stop-losses).
+    # 60 bars × 5s = 5-minute window. 1.5% is ~2× typical 5-min HYPE volatility.
+    momentum_lookback_bars: int = 60
+    momentum_threshold: float = 0.015  # 1.5%
+
     # Max slippage tolerated on a market order before we treat it as failed
     order_slippage: float = 0.01  # 1%
 
