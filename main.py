@@ -141,6 +141,18 @@ async def _tick(
         )
         return
 
+    # Guard: log-price Kalman requires both prices > $1. If either price < $1,
+    # log(price) is negative and the initial beta = log(A)/log(B) gets the wrong
+    # sign, causing the bot to trade in reverse for hundreds of bars until the
+    # filter converges. Abort the tick — this pair is unsupported in log-price space.
+    if price_a < 1.0 or price_b < 1.0:
+        logger.error(
+            "PRICE < $1 | %s=%.4f %s=%.4f — log-price Kalman invalid for sub-dollar assets. "
+            "Use a pair where both prices are > $1.",
+            cfg.asset_a, price_a, cfg.asset_b, price_b,
+        )
+        return
+
     # ---- 2. Kalman filter → spread (log-price space) ----
     # Using log prices prevents the Kalman gain from absorbing 100% of the
     # spread every tick (which happens with raw prices where price_b ≈ 77 000).
