@@ -88,6 +88,11 @@ class TradingConfig:
     momentum_lookback_bars: int = 60
     momentum_threshold: float = 0.010  # 1.0%
 
+    # Require this many consecutive bars with |z| >= stop_z before triggering stop-loss.
+    # 1 = trigger immediately (original behavior). 2 = skip single-bar spikes that self-revert.
+    # Costs one extra bar of loss on genuine trend breaks but prevents whipsaw stops on HYPE spikes.
+    stop_z_confirm_bars: int = 2
+
     # Max slippage tolerated on a market order before we treat it as failed
     order_slippage: float = 0.01  # 1%
 

@@ -52,6 +52,7 @@ class ExecutionEngine:
         self.position: Optional[Position] = None
         self._paper_gross_pnl: float = 0.0  # cumulative gross (before fees) — validates strategy
         self._paper_pnl: float = 0.0        # cumulative net (after fees) — reflects live reality
+        self._stop_consecutive_bars: int = 0  # tracks bars above stop_z for confirmation
 
     # ------------------------------------------------------------------
     # Sizing
@@ -108,6 +109,7 @@ class ExecutionEngine:
             self._cfg.notional_usd, self._cfg.paper_mode,
         )
 
+        self._stop_consecutive_bars = 0
         if self._cfg.paper_mode:
             self.position = Position(
                 side=side, sz_a=sz_a, sz_b=sz_b, beta=beta,
@@ -284,10 +286,15 @@ class ExecutionEngine:
         return True
 
     def should_stop_loss(self, z: float) -> bool:
-        """True when z has blown out far enough to signal cointegration break."""
+        """True when z has been above stop_z for stop_z_confirm_bars consecutive bars.
+        Requires confirmation to avoid exiting on single-bar spikes that self-revert."""
         if self.position is None:
             return False
-        return abs(z) >= self._cfg.stop_z
+        if abs(z) >= self._cfg.stop_z:
+            self._stop_consecutive_bars += 1
+            return self._stop_consecutive_bars >= self._cfg.stop_z_confirm_bars
+        self._stop_consecutive_bars = 0
+        return False
 
     def should_time_stop(self, current_half_life: Optional[float]) -> bool:
         """
