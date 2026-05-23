@@ -77,10 +77,12 @@ class TradingConfig:
     # Beta drift filter: the Kalman hedge ratio drifts upward when asset_a is
     # systematically rising vs asset_b (pump regime). Block entries in the trending
     # direction when beta_now - beta_{N bars ago} exceeds this threshold.
-    # 300 bars = 25 min window. Threshold 3e-4: ~11σ above pure noise drift,
-    # triggered at ~0.5% drift in 25 min (caught today's HYPE pump early).
+    # 300 bars = 25 min window. Threshold 2.5e-4: ~5σ above HYPE/ETH noise floor
+    # (ETH co-moves with HYPE so Kalman beta noise is larger than HYPE/SOL ~11σ).
+    # Lowered from 3e-4 on 2026-05-23: Trade4 loss -$7.84 had drift=3e-4 exactly
+    # at old threshold (strict > missed it); new threshold catches this regime.
     beta_drift_window: int = 300
-    beta_drift_threshold: float = 0.0003
+    beta_drift_threshold: float = 0.00025
 
     # Price momentum filter: block entries when price_a has moved more than this
     # fraction in the opposite direction to the proposed trade, measured over the
