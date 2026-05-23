@@ -296,6 +296,19 @@ class ExecutionEngine:
         self._stop_consecutive_bars = 0
         return False
 
+    def should_adverse_exit(self, price_a: float, price_b: float) -> bool:
+        """True when unrealized gross loss exceeds max_adverse_gross_usd.
+
+        Catches slow directional drifts where the rolling spread mean adapts to
+        the trend, keeping z "normal" while the dollar loss accumulates. The
+        z-based stop_loss doesn't fire in this case; this provides a hard floor.
+        Disabled when max_adverse_gross_usd <= 0.
+        """
+        if self.position is None or self._cfg.max_adverse_gross_usd <= 0.0:
+            return False
+        gross = self.compute_gross_pnl(price_a, price_b)
+        return gross < -self._cfg.max_adverse_gross_usd
+
     def should_time_stop(self, current_half_life: Optional[float]) -> bool:
         """
         True when the trade has been open past 2x its OU half-life.

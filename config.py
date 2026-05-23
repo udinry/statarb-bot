@@ -70,6 +70,14 @@ class TradingConfig:
     # Useful for high-sigma pairs (HYPE/ETH); leave at 0 for ETH/BTC.
     min_profit_factor: float = 1.1   # exit only when gross > 1.1x fees; guards against σ-expansion false exits
 
+    # Exit immediately when unrealized gross loss exceeds this amount.
+    # Catches slow drifts where the rolling z-score mean adapts to the trend
+    # (z stays "normal" while dollar loss grows). Complements z-based stop_loss.
+    # 0.0 = disabled. At $1000 notional, $3.0 = 0.3% adverse move on HYPE leg.
+    # HYPE/ETH loss 2026-05-23: long HYPE, HYPE fell -0.43%, gross=-$4.27 despite
+    # z never exceeding 2.2 — rolling mean tracked the drift, z-stop never fired.
+    max_adverse_gross_usd: float = 3.0
+
     # Number of recent hl estimates used to compute the hl trend slope.
     # is_spread_trending() fires when slope > 0.03 bars/tick over this window.
     hl_trend_lookback: int = 20

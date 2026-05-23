@@ -202,6 +202,14 @@ async def _tick(
             await engine.exit(reason=f"stop_loss z={z:.3f}", price_a=price_a, price_b=price_b)
             return
 
+        if engine.should_adverse_exit(price_a, price_b):
+            gross = engine.compute_gross_pnl(price_a, price_b)
+            await engine.exit(
+                reason=f"adverse_exit gross=${gross:.4f} limit=${cfg.max_adverse_gross_usd:.2f}",
+                price_a=price_a, price_b=price_b,
+            )
+            return
+
         if engine.should_time_stop(half_life):
             age = engine.position.age_bars(cfg.poll_interval_seconds)
             await engine.exit(
