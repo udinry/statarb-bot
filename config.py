@@ -37,6 +37,9 @@ class TradingConfig:
     require_half_life: bool = True
     # Skip entry if hl > this many bars — spread is trending, not mean-reverting.
     max_half_life_bars: float = 8.0   # HYPE/SOL hl~7.3b; ETH/BTC had 1.2-2b so 5.0 was fine there
+    # Skip entry if hl < this many bars — OLS estimate is noisy at very short hl; time_stop fires
+    # at 7×hl so hl=3.4b → 24-bar window is too tight for spread to revert realistically.
+    min_half_life_bars: float = 4.0
 
     # Close if trade age exceeds this multiple of the OU half-life.
     # ETH/BTC hl ≈ 1.8 bars. At 2x that's only 18s — too aggressive.

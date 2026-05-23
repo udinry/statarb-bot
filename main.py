@@ -234,6 +234,12 @@ async def _tick(
                 half_life, cfg.max_half_life_bars,
             )
             return
+        if half_life < cfg.min_half_life_bars:
+            logger.info(
+                "Entry skipped | half_life=%.1fb < min=%.1fb (noisy estimate, time_stop too tight)",
+                half_life, cfg.min_half_life_bars,
+            )
+            return
 
     # Guard: skip entry when hl is INCREASING (spread losing mean-reversion property).
     # Catches trending regimes even when current hl is below max_half_life_bars.
