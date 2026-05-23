@@ -36,7 +36,7 @@ logging.basicConfig(level=logging.WARNING)  # suppress noise during scan
 NOTIONAL_USD      = 1000.0
 TAKER_FEE_RATE    = 0.00045   # 0.045% HL base tier
 MAKER_REBATE_RATE = 0.00015   # 0.015% HL base tier
-ENTRY_Z           = 2.0
+ENTRY_Z           = 2.3
 POLL_INTERVAL     = 5.0       # seconds between samples
 N_BARS            = 120       # warmup + measurement window
 
@@ -140,6 +140,8 @@ async def run_scanner():
             pb = mids.get(s.asset_b)
             if pa is None or pb is None:
                 continue
+            if pa < 1.0 or pb < 1.0:
+                continue  # log-price Kalman invalid for sub-dollar assets
             s.last_price_a = pa
             s.last_price_b = pb
             _, spread = s.kalman.update(math.log(pa), math.log(pb))
@@ -178,7 +180,13 @@ async def run_scanner():
     print("FINAL RANKING — Expected net PnL per trade after maker/taker fees")
     print("=" * 80)
     final = []
+    invalid = []
     for s in states:
+        if s.last_price_a > 0.0 and s.last_price_b > 0.0 and (s.last_price_a < 1.0 or s.last_price_b < 1.0):
+            low = s.asset_a if s.last_price_a < 1.0 else s.asset_b
+            low_p = s.last_price_a if s.last_price_a < 1.0 else s.last_price_b
+            invalid.append(f"{s.asset_a}/{s.asset_b} ({low}=${low_p:.4f})")
+            continue
         r = compute_expected_net(s)
         if r:
             final.append(r)
@@ -200,6 +208,10 @@ async def run_scanner():
             print(f"  → {r['pair']}: E[net]=${r['expected_net']:+.4f}/trade, hl={r['hl_bars']:.1f}b")
     else:
         print("  (none found in current market conditions)")
+    if invalid:
+        print("\nSkipped (log-price Kalman invalid):")
+        for label in invalid:
+            print(f"  ✗ {label}")
 
 
 if __name__ == "__main__":
