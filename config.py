@@ -20,7 +20,7 @@ class TradingConfig:
     kalman_R: float = 5e-2       # measurement noise (log-price units)
 
     # Z-score thresholds
-    entry_z: float = 2.0       # open trade
+    entry_z: float = 2.3       # open trade (raised from 2.0: higher expected gross per trade; E[net]=$1.66 vs $1.39)
     exit_z: float = 0.0        # close trade on full reversion (z crosses 0); time_stop backstops if z stalls
     stop_z: float = 3.5        # stop loss — spread blowing out; >3.5 is momentum not reversion
 
