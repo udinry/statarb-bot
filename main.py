@@ -104,6 +104,9 @@ async def run(cfg: TradingConfig) -> None:
     # Beta drift tracker: the Kalman hedge ratio drifts when asset_a trends vs asset_b.
     # Fires earlier than hl-slope (which needs spread width to increase first).
     _beta_history: collections.deque = collections.deque(maxlen=cfg.beta_drift_window)
+    # Entry confirmation tracker: require |z| >= entry_z for N consecutive bars before entering.
+    # Prevents entering on 1-bar spikes that self-revert before the trade can profit.
+    _entry_z_history: collections.deque = collections.deque(maxlen=cfg.entry_confirm_bars)
 
     logger.info("Size precision | %s=%d decimals %s=%d decimals",
                 cfg.asset_a, sz_a, cfg.asset_b, sz_b)
@@ -118,7 +121,7 @@ async def run(cfg: TradingConfig) -> None:
 
     while True:
         try:
-            await _tick(cfg, client, kalman, analyzer, funding, engine, _price_a_history, _beta_history)
+            await _tick(cfg, client, kalman, analyzer, funding, engine, _price_a_history, _beta_history, _entry_z_history)
         except Exception:
             logger.exception("Unhandled exception in tick — continuing")
 
@@ -134,6 +137,7 @@ async def _tick(
     engine: ExecutionEngine,
     price_a_history: collections.deque,
     beta_history: collections.deque,
+    entry_z_history: collections.deque,
 ) -> None:
     # ---- 1. Fetch prices ----
     try:
@@ -216,10 +220,27 @@ async def _tick(
         return
 
     # ---- 5. Look for new entry ----
+    # Track |z| each bar for entry confirmation (done before the entry_z gate so
+    # the history fills even when z is outside the entry zone).
+    entry_z_history.append(abs(z))
+
     # Guard: only enter inside the valid zone [entry_z, stop_z).
     # Entering at |z| >= stop_z means we'd immediately stop-loss on any
     # continuation of the move — we entered above our own stop threshold.
     if not (cfg.entry_z <= abs(z) < cfg.stop_z):
+        return
+
+    # Guard: require |z| >= entry_z for entry_confirm_bars consecutive bars.
+    # Prevents entering on 1-bar spikes (e.g., z jumps 1.1→3.2 in one tick and
+    # reverts without ever generating a dollar profit). With deque maxlen=N, all()
+    # check fails if ANY of the last N bars was below the threshold.
+    if (len(entry_z_history) < cfg.entry_confirm_bars
+            or not all(v >= cfg.entry_z for v in entry_z_history)):
+        logger.info(
+            "Entry skipped | z=%.3f not confirmed (%d/%d bars above entry_z=%.2f)",
+            z, sum(1 for v in entry_z_history if v >= cfg.entry_z),
+            cfg.entry_confirm_bars, cfg.entry_z,
+        )
         return
 
     # Guard: require established half-life (bars 100-199 have z but not hl).

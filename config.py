@@ -99,6 +99,12 @@ class TradingConfig:
     # Costs one extra bar of loss on genuine trend breaks but prevents whipsaw stops on HYPE spikes.
     stop_z_confirm_bars: int = 2
 
+    # Require this many consecutive bars with |z| >= entry_z before entering a trade.
+    # 1 = enter immediately (old behavior). 2 = skip 1-bar spikes (z jumps from <2.3 to >2.3
+    # in one tick and reverts next bar — these have no time to confirm mean-reversion intent).
+    # HYPE/ETH loss at 22:10:28: z=1.14→3.17 in one bar, then drifted → time_stop -$0.84.
+    entry_confirm_bars: int = 2
+
     # Max slippage tolerated on a market order before we treat it as failed
     order_slippage: float = 0.01  # 1%
 
