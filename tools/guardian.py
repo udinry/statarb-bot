@@ -65,10 +65,14 @@ def get_recent_exits(n: int = 20, since: float = 0.0) -> list[float]:
 
     since: unix timestamp; if > 0, only trades logged after this time are counted.
     This prevents re-firing on stale pre-cooldown trades after a circuit resume.
+    When since > 0, omit -n cap so all trades in the session are visible — the
+    -n 500 line limit silently truncated active sessions to the last ~4 min.
     """
-    cmd = ["journalctl", "-u", "statarb", "--no-pager", "-n", "500"]
     if since > 0:
-        cmd += ["--since", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(since))]
+        cmd = ["journalctl", "-u", "statarb", "--no-pager",
+               "--since", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(since))]
+    else:
+        cmd = ["journalctl", "-u", "statarb", "--no-pager", "-n", "500"]
     raw = run(cmd)
     nets = []
     for line in raw.splitlines():
