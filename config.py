@@ -21,7 +21,7 @@ class TradingConfig:
 
     # Z-score thresholds
     entry_z: float = 2.3       # open trade (raised from 2.0: higher expected gross per trade; E[net]=$1.66 vs $1.39)
-    exit_z: float = 0.0        # close trade on full reversion (z crosses 0); time_stop backstops if z stalls
+    exit_z: float = 0.1        # exit when z <= 0.1 (captures near-zero reversions that bounce before crossing 0)
     stop_z: float = 3.5        # stop loss — spread blowing out; >3.5 is momentum not reversion
 
     # Rolling window for z-score normalization (in bars)
@@ -36,7 +36,7 @@ class TradingConfig:
     # Entries in bars 100-199 (z ready but hl not) risk entering momentum moves.
     require_half_life: bool = True
     # Skip entry if hl > this many bars — spread is trending, not mean-reverting.
-    max_half_life_bars: float = 8.0   # HYPE/SOL hl~7.3b; ETH/BTC had 1.2-2b so 5.0 was fine there
+    max_half_life_bars: float = 6.5   # Trade2 lost $6.67 entering at hl=7.5b (1.36× typical 5.5b) — pump exposure too long
     # Skip entry if hl < this many bars. Blocks sub-1.5b OLS estimates which are unreliable.
     # Note: low hl is actually safer (time_stop fires faster, less adverse drift exposure).
     # 4.0 was too conservative — it blocked the entire 1.7-2.4b fast-reversion regime.
