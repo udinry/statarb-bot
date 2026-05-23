@@ -60,9 +60,16 @@ def start_service() -> None:
     subprocess.run(["systemctl", "start", "statarb"])
 
 
-def get_recent_exits(n: int = 20) -> list[float]:
-    """Return net P&L of the last n EXIT trades from journalctl (most recent last)."""
-    raw = run(["journalctl", "-u", "statarb", "--no-pager", "-n", "500"])
+def get_recent_exits(n: int = 20, since: float = 0.0) -> list[float]:
+    """Return net P&L of the last n EXIT trades from journalctl (most recent last).
+
+    since: unix timestamp; if > 0, only trades logged after this time are counted.
+    This prevents re-firing on stale pre-cooldown trades after a circuit resume.
+    """
+    cmd = ["journalctl", "-u", "statarb", "--no-pager", "-n", "500"]
+    if since > 0:
+        cmd += ["--since", time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(since))]
+    raw = run(cmd)
     nets = []
     for line in raw.splitlines():
         if "EXIT (paper)" not in line:
@@ -90,6 +97,7 @@ def main() -> None:
 
     cooldown_until: float = 0.0
     cooldown_reason: str = ""
+    session_start: float = time.time()  # only count trades after this timestamp
 
     while True:
         now = time.time()
@@ -108,6 +116,7 @@ def main() -> None:
             start_service()
             cooldown_until = 0.0
             cooldown_reason = ""
+            session_start = time.time()  # reset: only count trades from this new session
             time.sleep(CHECK_INTERVAL)
             continue
 
@@ -117,7 +126,7 @@ def main() -> None:
             time.sleep(CHECK_INTERVAL)
             continue
 
-        exits = get_recent_exits(max(ROLLING_WINDOW, HARD_STOP_WINDOW))
+        exits = get_recent_exits(max(ROLLING_WINDOW, HARD_STOP_WINDOW), since=session_start)
         cum_net = get_current_cumulative_net()
 
         if len(exits) < ROLLING_WINDOW:
