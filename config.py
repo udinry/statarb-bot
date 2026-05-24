@@ -91,7 +91,7 @@ class TradingConfig:
     # (ETH co-moves with HYPE so Kalman beta noise is larger than HYPE/SOL ~11σ).
     # Lowered from 3e-4 on 2026-05-23: Trade4 loss -$7.84 had drift=3e-4 exactly
     # at old threshold (strict > missed it); new threshold catches this regime.
-    beta_drift_window: int = 300
+    beta_drift_window: int = 150
     beta_drift_threshold: float = 0.00025
 
     # Price momentum filter: block entries when price_a has moved more than this
