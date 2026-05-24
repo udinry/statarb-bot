@@ -238,16 +238,16 @@ async def _tick(
     if not (cfg.entry_z <= abs(z) < cfg.stop_z):
         return
 
-    # Guard: require |z| >= entry_z for entry_confirm_bars consecutive bars.
-    # Prevents entering on 1-bar spikes (e.g., z jumps 1.1→3.2 in one tick and
-    # reverts without ever generating a dollar profit). With deque maxlen=N, all()
-    # check fails if ANY of the last N bars was below the threshold.
+    # Guard: require |z| in [entry_z, stop_z) for entry_confirm_bars consecutive bars.
+    # Prevents entering on 1-bar spikes AND prevents entering after a stop_z breach.
+    # A bar at |z| >= stop_z signals a trending spread; the next bar recovering to
+    # [entry_z, stop_z) is not a valid reversion signal — it's a falling knife.
     if (len(entry_z_history) < cfg.entry_confirm_bars
-            or not all(v >= cfg.entry_z for v in entry_z_history)):
+            or not all(cfg.entry_z <= v < cfg.stop_z for v in entry_z_history)):
         logger.info(
-            "Entry skipped | z=%.3f not confirmed (%d/%d bars above entry_z=%.2f)",
-            z, sum(1 for v in entry_z_history if v >= cfg.entry_z),
-            cfg.entry_confirm_bars, cfg.entry_z,
+            "Entry skipped | z=%.3f not confirmed (%d/%d bars in [entry_z=%.2f, stop_z=%.2f))",
+            z, sum(1 for v in entry_z_history if cfg.entry_z <= v < cfg.stop_z),
+            cfg.entry_confirm_bars, cfg.entry_z, cfg.stop_z,
         )
         return
 
