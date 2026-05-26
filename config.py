@@ -38,7 +38,7 @@ class TradingConfig:
     # Entries in bars 100-199 (z ready but hl not) risk entering momentum moves.
     require_half_life: bool = True
     # Skip entry if hl > this many bars — spread is trending, not mean-reverting.
-    max_half_life_bars: float = 6.5   # Trade2 lost $6.67 entering at hl=7.5b (1.36× typical 5.5b) — pump exposure too long
+    max_half_life_bars: float = 7.0   # raised 6.5→7.0 2026-05-24: scanner shows HYPE/ETH base hl=5.7b; brief micro-moves spike hl to 6.9-7.8b blocking winning entries; max_adverse_gross_usd=3.0 is backstop; Trade2 was at hl=7.5b (still blocked)
     # Skip entry if hl < this many bars. Blocks sub-1.5b OLS estimates which are unreliable.
     # Note: low hl is actually safer (time_stop fires faster, less adverse drift exposure).
     # 4.0 was too conservative — it blocked the entire 1.7-2.4b fast-reversion regime.
