@@ -46,8 +46,9 @@ class TradingConfig:
 
     # Close if trade age exceeds this multiple of the OU half-life.
     # ETH/BTC hl ≈ 1.8 bars. At 2x that's only 18s — too aggressive.
-    # 5x = 45s gives the spread enough time to revert before bailing.
-    time_stop_multiplier: float = 7.0
+    # Wins reverted in 2-18 bars (reversion exit fires first). Losses spend
+    # 14-32 bars going nowhere. 5x cuts losses ~30% shorter, wins unaffected.
+    time_stop_multiplier: float = 5.0
 
     # Notional USD per leg (leg B is beta-adjusted to match leg A notional)
     notional_usd: float = field(
